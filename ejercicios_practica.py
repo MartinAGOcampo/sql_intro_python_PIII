@@ -32,7 +32,7 @@ def create_schema():
 
     # Ejecutar una query
     c.execute("""
-                DROP TABLE IF EXISTS estudiante;
+                DROP TABLE IF EXISTS estudiante; 
             """)
 
     # Ejecutar una query
@@ -54,7 +54,7 @@ def create_schema():
     conn.close()
 
 
-def fill(identificador, nombre, edad, grado, tutor):
+def fill(estudiantes):
     # print('Completemos esta tablita!')
     # Llenar la tabla de la secundaria con al menos 5 estudiantes
     # Cada estudiante tiene los posibles campos:
@@ -68,15 +68,17 @@ def fill(identificador, nombre, edad, grado, tutor):
     # Observar que hay campos como "grade" y "tutor" que no son obligatorios
     # en el schema creado, puede obivar en algunos casos completar esos campos
 
+    print('Comenzemos a rellenar la tabla')
+    print()
     conn = sqlite3.connect('secundaria.db')
     c = conn.cursor()
 
-    values = [identificador, nombre, edad, grado, tutor]
+    c.executemany("""
+              INSERT INTO estudiante(nombre, edad, grado, tutor)
+              VALUES(?, ?, ?, ?);
+              """, estudiantes)
 
-    c.execute("""
-        INSERT INTO estudiante (identificador, nombre, edad, grado, tutor)
-        VALUES (?,?,?,?,?);""", values)
-
+    print('Los valores fueron agregados exitosamente')
     conn.commit()
     conn.close()
 
@@ -86,14 +88,22 @@ def fetch():
     # Utilizar la sentencia SELECT para imprimir en pantalla
     # todas las filas con todas sus columnas
     # Utilizar fetchone para imprimir de una fila a la vez
+
+    print('La tabla se encuentra con los siguientes datos: ')
+    print()
     conn = sqlite3.connect('secundaria.db')
     c = conn.cursor()
-
-    print('Recorrer los datos ingresados')
-    for row in c.execute('SELECT * FROM estudiante'):
-        print(row)
-
+    c.execute("""
+            SELECT * FROM estudiante;
+            """)
+    rows = c.fetchone()
+    while rows is not None:
+        print(rows)
+        rows = c.fetchone()
+    
     conn.close()
+    print('Fin de la tabla')
+    print('------------------------')
 
 def search_by_grade(grade):
     print('Operación búsqueda!')
@@ -103,29 +113,44 @@ def search_by_grade(grade):
     # De la lista de esos estudiantes el SELECT solo debe traer
     # las siguientes columnas por fila encontrada:
     # id / name / age
-
     conn = sqlite3.connect('secundaria.db')
     c = conn.cursor()
-
-    for row in c.execute("SELECT identificador, nombre, edad FROM estudiante where grado=?",(str(grade))):
-        print(row)
-
-    conn.close()
+    print(f'Estudiantes que estan en el año {grade}')
+    print()
+    c.execute("""
+            SELECT identificador, nombre, edad FROM estudiante
+            WHERE grado = ?;
+            """, (grade,))
+    rows = c.fetchone()
+    while rows is not None:
+        print(rows)
+        rows = c.fetchone()
     
-def insert(grade):
+    conn.close()
+    print('Fin de la búsqueda')
+    print('------------------------')
+    
+
+def insert(nombre, edad, grado, tutor):
     print('Nuevos ingresos!')
     # Utilizar la sentencia INSERT para ingresar nuevos estudiantes
     # a la secundaria
-
+    print('Vamos a ingresar nuevos estudiantes :D')
+    print('')
+    
     conn = sqlite3.connect('secundaria.db')
     c = conn.cursor()
-
+    nuevo_estudiante = (nombre, edad, grado, tutor)
+    print(f'Los valores que vamos a ingresar son: {nuevo_estudiante}')
     c.execute("""
-        INSERT INTO estudiante (nombre, edad)
-        VALUES (?,?);""", grade)
-
+              INSERT INTO estudiante (nombre, edad, grado, tutor) VALUES (?, ?, ?, ?);
+               """, (nombre, edad, grado, tutor))
+    
     conn.commit()
     conn.close()
+    print()
+    print('Ingresando valores')
+    print()
 
 def modify(id, name):
     print('Modificando la tabla')
@@ -135,37 +160,57 @@ def modify(id, name):
 
     conn = sqlite3.connect('secundaria.db')
     c = conn.cursor()
-
-    rowcount = c.execute("UPDATE estudiante SET nombre =? WHERE identificador =?",
-                         (name, id)).rowcount
-
-    print('Filas actualizadas:', rowcount)
-
+    
+    actualizacion = c.execute("""
+            UPDATE estudiante SET nombre =? 
+                              WHERE identificador = ? """, (name, id))
     conn.commit()
     conn.close()
+    print('Los valores fueron modificados exitosamente')
+    print('------------------------')
 
 if __name__ == '__main__':
     print("Bienvenidos a otra clase con Python")
+    print('Primero creamos la base de datos con la tabla llamada estudiantes')
+    print('Va contener los siguientes datos: nombre, edad, curso y tutor')
     create_schema()   # create and reset database (DB)
-    fill(1, "Jesús González", 40, 1, "Madre")
-    fill(2, "Rosa Chavez", 28, 1, "Madre")
-    fill(3, "Carolina Figueroa", 24, 2, "Padre")
-    fill(4, "Francisco Gallo", 23, 2, "Madre")
-    fill(5, "Gastón Villarreal", 35, 3, "Padre")
+
+    print('Creada la tabla vamos a comenzar a insertar datos')
+    print()
+
+    estudiantes = [
+        ("Simon Alvarez", 48, 3, "Tio"),
+        ("Carlos Mejia", 21, 3, "Madre"),
+        ("Oscar Palavecino", 19, 3, "Padre"),
+        ("Patricia Arevalo", 45, 1, "Madre"),
+        ("María González", 22, 1, "Padre")
+        ]
+    fill(estudiantes)
+
     fetch()
 
     grade =3
     search_by_grade(grade)
 
-    new_student = ['You', 16]
-    insert(new_student)
+    new_student = ('Martin', 30, 2, "Padre")
+    insert(*new_student)
+    print(f'El ingreso fue exitoso, ahora los valores {new_student} son parte de la base de datos ')
+    print('------------------------')
+    print()
 
-    fetch()
-
-    name = '¿Instituto Zuviría?'
-    id = 2
+    print('Vamos a realizar un UPDATE que vos elijas mediante un ID que puede ser 1, 2, 3, 4, 5, 6')
+    while True:
+        try:
+            id = int(input('Cual es el ID al que quieres reemplazar el nombre: '))
+            if 1 <= id <= 6:
+                break
+            else:
+                print('Por favor ingresa un numero entre los valores dados')
+        except ValueError:
+            print('Eso no es un numero valido, intenta de nuevo')
+    name = input('Cual es el nombre que le quieres otorgar?: ')
     modify(id, name)
     
+    print('Veamos como queda la tabla finalmente')
     fetch()
-
 
